@@ -1,9 +1,11 @@
 #include <Servo.h> 
 #include <NewPing.h>
+#include "sounds.c"
+
 
 #define TRIGGER_PIN  13   // Arduino pin tied to trigger pin on the ultrasonic sensor.
 #define ECHO_PIN     13   // Arduino pin tied to echo pin on the ultrasonic sensor.
-#define MAX_DISTANCE 200  // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
+#define MAX_DISTANCE 50  // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
 #define UMBRAL 30          // Distancia que considera cercano (en cm)
 
 //Servo head
@@ -16,6 +18,15 @@
 #define ENB 6
 #define IN3 9
 #define IN4 8
+
+//Buzzer
+#define PIN_BUZZER 7
+
+//Tiempos
+#define LOOP_TIME 30
+
+unsigned long loopTimer = 0, buzzerTimer=0, buzzerTime = 0,  noteDurationTimer=0, noteDurationTime=0;
+boolean buzzerOn;
 
 NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE); // NewPing setup of pins and maximum distance. 
 Servo servoHead;
@@ -36,22 +47,42 @@ void setup()
   pinMode(IN3, OUTPUT);     
   pinMode(IN4, OUTPUT);
   
+  initialMelody(PIN_BUZZER);
+  
+  pinMode(5, OUTPUT);  
+  digitalWrite(5, HIGHT);
+  pinMode(4, OUTPUT);  
+  digitalWrite(4, HIGHT);
+  pinMode(3, OUTPUT);  
+  digitalWrite(3, HIGHT);
+
 } 
  
  
 void loop() 
-{    
-    motorForward(200);
-    scan();
-    if (distance < UMBRAL){
-        motorLeft(200);
-       delay(100); 
-    }
-    else {
-        motorForward(200); 
-    }
-    
-
+{   
+  loopTimer = millis();
+   
+  motorForward(200);
+  scan();
+  
+  if ((millis()-noteDurationTimer) > noteDurationTime && buzzerOn){
+    noTone(PIN_BUZZER);
+    buzzerOn=false;
+  }
+  if ((millis()-buzzerTimer) > buzzerTime){
+    buzzerTimer=millis();
+    nearSound(PIN_BUZZER,distance);
+  }
+  if (distance < UMBRAL){
+     motorLeft(200);
+     delay(100); 
+  }
+  else {
+      motorForward(200); 
+  }
+   
+   while ((millis()-loopTimer) < LOOP_TIME){delay(20);} //Solo ejecuta bucle principal una vez cada LOOP_TIME
 } 
 
 void scan(){
@@ -98,3 +129,12 @@ void motorStop(){
    digitalWrite(IN3, LOW);   
    digitalWrite(IN4, LOW);  
 }
+
+void nearSound(int pin, int distance){
+    tone(pin, NOTE_C4,1000/8);
+    noteDurationTime=1000/8;
+    buzzerTime = distance>40?1600:distance*distance;
+    noteDurationTimer=millis();
+    buzzerOn=true;
+}
+
