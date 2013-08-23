@@ -3,21 +3,17 @@
 #include "sounds.c"
 
 
+//Ultrasonidos
 #define TRIGGER_PIN  13   // Arduino pin tied to trigger pin on the ultrasonic sensor.
 #define ECHO_PIN     13   // Arduino pin tied to echo pin on the ultrasonic sensor.
 #define MAX_DISTANCE 50  // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
 #define UMBRAL 30          // Distancia que considera cercano (en cm)
 
 //Servo head
-#define PIN_SERVO 3
-
-//Pines motores
-#define ENA 5
-#define IN1 11
-#define IN2 10
-#define ENB 6
-#define IN3 9
-#define IN4 8
+#define PIN_SERVO 3       // Pin de cotrol del servo
+Servo servoHead;          // Objeto servo
+int pos;             // Posición del servo
+unsigned int distance;    // Distancia minima actual a obstáculo
 
 //Buzzer
 #define PIN_BUZZER 7
@@ -33,13 +29,28 @@ Servo servoHead;
  
 int pos = 30; // variable to store the servo position 
 unsigned int distance = 0;
+
+//Motores
+#define ENA 5             // Potencia motor A
+#define IN1 11            // Control 1 motor A
+#define IN2 10            // Control 2 motor A
+#define ENB 6             // Potencia motor B
+#define IN3 9             // Control 1 motor B
+#define IN4 8             // Control 2 motor A
  
 void setup() 
 { 
   Serial.begin(115200);
-  servoHead.attach(PIN_SERVO);  // attaches the servo on pin PIN_SERVO to the servo object 
-  servoHead.write(80);
   
+  //Ultrasonidos
+  distance = 0;
+  
+  //Servo head
+  servoHead.attach(PIN_SERVO);
+  servoHead.write(80);
+  pos=30;
+  
+  //Motores
   pinMode(ENA, OUTPUT);     
   pinMode(IN1, OUTPUT);     
   pinMode(IN2, OUTPUT);     
@@ -49,13 +60,12 @@ void setup()
   
   initialMelody(PIN_BUZZER);
   
-  pinMode(5, OUTPUT);  
+  /*pinMode(2, OUTPUT);  
   digitalWrite(5, HIGHT);
-  pinMode(4, OUTPUT);  
+  pinMode(1, OUTPUT);  
   digitalWrite(4, HIGHT);
-  pinMode(3, OUTPUT);  
-  digitalWrite(3, HIGHT);
-
+  pinMode(0, OUTPUT);  
+  digitalWrite(3, HIGHT);*/
 } 
  
  
@@ -86,11 +96,11 @@ void loop()
 } 
 
 void scan(){
-  unsigned int uS = sonar.ping(); // Send ping, get ping time in microseconds (uS).
+  unsigned int uS = sonar.ping();
   distance = sonar.convert_cm(uS);
   if (distance==0){distance=MAX_DISTANCE;}
   Serial.print("Ping: ");
-  Serial.print(distance); // Convert ping time to distance and print result (0 = outside set distance range, no ping echo)
+  Serial.print(distance);
   Serial.println("cm");
 }
 
