@@ -6,29 +6,32 @@
 //Ultrasonidos
 #define TRIGGER_PIN  13   // Arduino pin tied to trigger pin on the ultrasonic sensor.
 #define ECHO_PIN     13   // Arduino pin tied to echo pin on the ultrasonic sensor.
-#define MAX_DISTANCE 50  // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
-#define UMBRAL 30          // Distancia que considera cercano (en cm)
+#define MAX_DISTANCE 50   // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
+#define UMBRAL 30         // Distancia que considera cercano (en cm)
+NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE); 
 
 //Servo head
 #define PIN_SERVO 3       // Pin de cotrol del servo
 Servo servoHead;          // Objeto servo
-int pos;             // Posición del servo
+int pos;                  // Posición del servo
 unsigned int distance;    // Distancia minima actual a obstáculo
 
 //Buzzer
 #define PIN_BUZZER 7
+
+//RGB
+#define PIN_RGB_R A2
+#define PIN_RGB_G A1
+#define PIN_RGB_B A0
+
+//Potenciometro
+#define PIN_POT A3
 
 //Tiempos
 #define LOOP_TIME 30
 
 unsigned long loopTimer = 0, buzzerTimer=0, buzzerTime = 0,  noteDurationTimer=0, noteDurationTime=0;
 boolean buzzerOn;
-
-NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE); // NewPing setup of pins and maximum distance. 
-Servo servoHead;
- 
-int pos = 30; // variable to store the servo position 
-unsigned int distance = 0;
 
 //Motores
 #define ENA 5             // Potencia motor A
@@ -45,6 +48,12 @@ void setup()
   //Ultrasonidos
   distance = 0;
   
+  //RGB
+  pinMode(PIN_RGB_R, OUTPUT);  
+  pinMode(PIN_RGB_G, OUTPUT);
+  pinMode(PIN_RGB_B, OUTPUT);
+  turnRGB(1,0,0);
+  
   //Servo head
   servoHead.attach(PIN_SERVO);
   servoHead.write(80);
@@ -58,20 +67,18 @@ void setup()
   pinMode(IN3, OUTPUT);     
   pinMode(IN4, OUTPUT);
   
-  initialMelody(PIN_BUZZER);
+  //Potenciometro
+  pinMode(PIN_POT, OUTPUT);  
   
-  /*pinMode(2, OUTPUT);  
-  digitalWrite(5, HIGHT);
-  pinMode(1, OUTPUT);  
-  digitalWrite(4, HIGHT);
-  pinMode(0, OUTPUT);  
-  digitalWrite(3, HIGHT);*/
+  initialMelody(PIN_BUZZER);
 } 
  
  
 void loop() 
 {   
   loopTimer = millis();
+  
+  Serial.println(analogRead(PIN_POT));
    
   motorForward(200);
   scan();
@@ -85,11 +92,13 @@ void loop()
     nearSound(PIN_BUZZER,distance);
   }
   if (distance < UMBRAL){
+     turnRGB(0,0,1);
      motorLeft(200);
      delay(100); 
   }
   else {
-      motorForward(200); 
+    turnRGB(0,1,0); 
+    motorForward(200); 
   }
    
    while ((millis()-loopTimer) < LOOP_TIME){delay(20);} //Solo ejecuta bucle principal una vez cada LOOP_TIME
@@ -99,9 +108,9 @@ void scan(){
   unsigned int uS = sonar.ping();
   distance = sonar.convert_cm(uS);
   if (distance==0){distance=MAX_DISTANCE;}
-  Serial.print("Ping: ");
-  Serial.print(distance);
-  Serial.println("cm");
+  //Serial.print("Ping: ");
+  //Serial.print(distance);
+  //Serial.println("cm");
 }
 
 void motorForward(int speed){
@@ -146,5 +155,11 @@ void nearSound(int pin, int distance){
     buzzerTime = distance>40?1600:distance*distance;
     noteDurationTimer=millis();
     buzzerOn=true;
+}
+
+void turnRGB(int R, int G, int B){
+  digitalWrite(PIN_RGB_R, R);
+  digitalWrite(PIN_RGB_G, G);
+  digitalWrite(PIN_RGB_B, B);
 }
 
