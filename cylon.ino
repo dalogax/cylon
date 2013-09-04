@@ -7,14 +7,18 @@
 #define TRIGGER_PIN  13   // Arduino pin tied to trigger pin on the ultrasonic sensor.
 #define ECHO_PIN     13   // Arduino pin tied to echo pin on the ultrasonic sensor.
 #define MAX_DISTANCE 50   // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
-#define UMBRAL 30         // Distancia que considera cercano (en cm)
+#define UMBRAL 40         // Distancia que considera cercano (en cm)
 NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE); 
 
 //Servo head
 #define PIN_SERVO 3       // Pin de cotrol del servo
+#define SERVO_CENTER 80   // Posicion del servo en centro
+#define SERVO_LEFT 120    // Posicion del servo a la izquierda
+#define SERVO_RIGHT 40    // Posicion del servo a la derecha
 Servo servoHead;          // Objeto servo
 int pos;                  // Posición del servo
 unsigned int distance;    // Distancia minima actual a obstáculo
+boolean goingRight;       // Indicador de hacia que lado est el servo con respecto al centro
 
 //Buzzer
 #define PIN_BUZZER 7
@@ -29,8 +33,9 @@ unsigned int distance;    // Distancia minima actual a obstáculo
 
 //Tiempos
 #define LOOP_TIME 30
+#define SERVO_TIME 150
 
-unsigned long loopTimer = 0, buzzerTimer=0, buzzerTime = 0,  noteDurationTimer=0, noteDurationTime=0;
+unsigned long loopTimer = 0, buzzerTimer=0, buzzerTime = 0,  noteDurationTimer=0, noteDurationTime=0, servoTimer=0;
 boolean buzzerOn;
 
 //Motores
@@ -56,8 +61,9 @@ void setup()
   
   //Servo head
   servoHead.attach(PIN_SERVO);
-  servoHead.write(80);
-  pos=30;
+  pos=SERVO_CENTER;
+  goingRight=true;
+  servoHead.write(pos);
   
   //Motores
   pinMode(ENA, OUTPUT);     
@@ -78,9 +84,13 @@ void loop()
 {   
   loopTimer = millis();
   
-  Serial.println(analogRead(PIN_POT));
+  //Serial.println(analogRead(PIN_POT));
+  
+  if ((millis()-servoTimer) > SERVO_TIME){
+    servoTimer=millis();
+    moverServo();
+  }
    
-  motorForward(200);
   scan();
   
   if ((millis()-noteDurationTimer) > noteDurationTime && buzzerOn){
@@ -93,15 +103,28 @@ void loop()
   }
   if (distance < UMBRAL){
      turnRGB(0,0,1);
-     motorLeft(200);
+     if (pos == SERVO_RIGHT){
+       motorLeft(170);
+     }
+     else if (pos == SERVO_LEFT){
+       motorRight(170);
+     }
+     else{
+       if (random(1)){
+         motorRight(220);
+       }
+       else{
+         motorLeft(220);
+       } 
+     }
      delay(100); 
   }
   else {
     turnRGB(0,1,0); 
-    motorForward(200); 
+    motorForward(180); 
   }
    
-   while ((millis()-loopTimer) < LOOP_TIME){delay(20);} //Solo ejecuta bucle principal una vez cada LOOP_TIME
+   while ((millis()-loopTimer) < LOOP_TIME){delay(1);} //Solo ejecuta bucle principal una vez cada LOOP_TIME
 } 
 
 void scan(){
@@ -161,5 +184,23 @@ void turnRGB(int R, int G, int B){
   digitalWrite(PIN_RGB_R, R);
   digitalWrite(PIN_RGB_G, G);
   digitalWrite(PIN_RGB_B, B);
+}
+
+void moverServo(){
+  if (pos==SERVO_LEFT){
+    goingRight=true;
+    pos=SERVO_CENTER;
+  }
+  else if(pos==SERVO_RIGHT){
+    goingRight=false;
+    pos=SERVO_CENTER;
+  }
+  else if (goingRight){
+    pos=SERVO_RIGHT;
+  }
+  else{
+    pos=SERVO_LEFT;
+  }
+  servoHead.write(pos);
 }
 
