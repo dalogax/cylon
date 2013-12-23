@@ -1,7 +1,11 @@
 #include <Servo.h> 
 #include <NewPing.h>
 #include "sounds.c"
+#include <SoftwareSerial.h>
 
+//Bluetooth
+SoftwareSerial blue(0,1);
+char rec;
 
 //Ultrasonidos
 #define TRIGGER_PIN  2   // Arduino pin tied to trigger pin on the ultrasonic sensor.
@@ -30,8 +34,8 @@ boolean goingRight;       // Indicador de hacia que lado est el servo con respec
 
 //Acelerometro
 #define PIN_X A3
-#define PIN_Y A4
-#define PIN_Z A5
+//#define PIN_Y A4
+//#define PIN_Z A5
 
 //Potenciometro
 #define PIN_POT A2
@@ -44,6 +48,11 @@ boolean goingRight;       // Indicador de hacia que lado est el servo con respec
 unsigned long loopTimer = 0, buzzerTimer=0, buzzerTime = 0,  noteDurationTimer=0, noteDurationTime=0, servoTimer=0, btTimer=0;
 boolean buzzerOn;
 
+//Siguelineas
+#define SL_RIGHT A4
+#define SL_LEFT A5
+int desc = 10;
+
 //Motores
 #define ENA 5             // Potencia motor A
 #define IN1 11            // Control 1 motor A
@@ -52,11 +61,17 @@ boolean buzzerOn;
 #define IN3 9             // Control 1 motor B
 #define IN4 8             // Control 2 motor A
  
-int speed = 220; 
- 
-void setup() 
-{ 
-  Serial.begin(9600);
+int speed = 220;
+
+//Modes
+#define MODE_STOP 0
+#define MODE_DISCOVERY 1
+#define MODE_SIGUELINEAS 2
+int mode = MODE_STOP;
+
+
+void setup(){
+  blue.begin(9600);
   
   //Ultrasonidos
   distance = 0;
@@ -88,28 +103,70 @@ void setup()
 
   //Acelerometro
   pinMode(PIN_X, INPUT); 
-  pinMode(PIN_Y, INPUT); 
-  pinMode(PIN_Z, INPUT);  
+  //pinMode(PIN_Y, INPUT); 
+  //pinMode(PIN_Z, INPUT); 
+ 
+  pinMode(SL_RIGHT, INPUT);     
+  pinMode(SL_LEFT, INPUT); 
   
   initialMelody(PIN_BUZZER);
 } 
- 
- 
+
 void loop() 
+{ 
+  if(blue.available()){
+    rec=blue.read();
+    switch(rec){
+      case '0':
+        modoStop();
+        mode = MODE_STOP;
+        break;
+      case '1':
+        modoStop();
+        mode = MODE_DISCOVERY;
+        break;
+      case '2':
+        mode = MODE_SIGUELINEAS;
+        break; 
+      default:
+        blue.print(rec);
+        blue.println(" no es una orden valida. Introduzca 0, 1 o 2");
+    }
+  }
+  speed = analogRead(PIN_POT)/4;
+  switch(mode){
+      case MODE_DISCOVERY:
+        modoDiscovery();
+        break;
+      case MODE_SIGUELINEAS:
+        modoSiguelineas();
+        break;
+      case MODE_STOP:
+        modoStop();
+        break;
+  }
+}
+
+void modoStop(){
+  motorStop();
+  turnRGB(1,0,0);
+  pos=SERVO_CENTER;
+  servoHead.write(pos);
+}
+ 
+void modoDiscovery() 
 {   
   loopTimer = millis();
   
   if ((millis()-btTimer) > BT_TIME){
      btTimer=millis();
-     sendBluetooth();
+     //sendBluetooth();
   }
   
   if ((millis()-servoTimer) > SERVO_TIME){
     servoTimer=millis();
     moverServo();
   }
-  
-  speed = analogRead(PIN_POT)/4;
    
   scan();
   
@@ -144,20 +201,34 @@ void loop()
     motorForward(speed); 
   }
    
-   while ((millis()-loopTimer) < LOOP_TIME){delay(1);} //Solo ejecuta bucle principal una vez cada LOOP_TIME
-} 
+  while ((millis()-loopTimer) < LOOP_TIME){delay(1);} //Solo ejecuta bucle principal una vez cada LOOP_TIME  
+}
+
+void modoSiguelineas(){
+  int right = analogRead(SL_RIGHT);
+  int left = analogRead(SL_LEFT);
+  if (right<190){
+     motorRight(speed);
+     turnRGB(0,1,1);
+  }
+  else if (left<80){
+    motorLeft(speed);
+    turnRGB(0,1,1);
+  }
+  else{
+   motorForward(speed);
+   turnRGB(1,0,1);  
+  }
+}
 
 void scan(){
   unsigned int uS = sonar.ping();
   distance = sonar.convert_cm(uS);
   if (distance==0){distance=MAX_DISTANCE;}
-  //Serial.print("Ping: ");
-  //Serial.print(distance);
-  //Serial.println("cm");
 }
 
 void motorForward(int speed){
-   analogWrite(ENA, speed);
+   analogWrite(ENA, speed+desc);
    digitalWrite(IN1, LOW);   
    digitalWrite(IN2, HIGH);   
    analogWrite(ENB, speed);   
@@ -166,7 +237,7 @@ void motorForward(int speed){
 }
 
 void motorLeft(int speed){
-   analogWrite(ENA, speed);
+   analogWrite(ENA, speed+desc);
    digitalWrite(IN1, LOW);   
    digitalWrite(IN2, HIGH);   
    analogWrite(ENB, speed);   
@@ -175,7 +246,7 @@ void motorLeft(int speed){
 }
 
 void motorRight(int speed){
-   analogWrite(ENA, speed);
+   analogWrite(ENA, speed+desc);
    digitalWrite(IN1, HIGH);   
    digitalWrite(IN2, LOW);   
    analogWrite(ENB, speed);   
@@ -225,13 +296,13 @@ void moverServo(){
 }
 
 void sendBluetooth(){
-  Serial.print("Speed=");
-  Serial.print(speed);
-  Serial.print(" X=");
-  Serial.print(analogRead(PIN_X));
-  Serial.print(" Y=");
-  Serial.print(analogRead(PIN_Y));
-  Serial.print(" Z=");
-  Serial.println(analogRead(PIN_Z));
+  blue.print("Speed=");
+  blue.print(speed);
+  blue.print(" X=");
+  blue.print(analogRead(PIN_X));
+//  blue.print(" Y=");
+//  blue.print(analogRead(PIN_Y));
+//  blue.print(" Z=");
+//  blue.println(analogRead(PIN_Z));
 }
 
